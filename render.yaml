@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: rtf-diff-app
+    env: python
+    plan: starter
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 300 --max-requests 1000
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PYTHONPATH
+        value: /opt/render/project/src
+      - key: MAX_CONTENT_LENGTH
+        value: "15728640"
+    healthCheckPath: /
+    autoDeploy: true

@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Files - RTF Comparison Tool{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h2 class="mb-0"><i class="fas fa-upload me-2"></i>Upload RTF Files for Comparison</h2>
+            </div>
+            <div class="card-body">
+                <!-- Helper Text -->
+                <div class="alert alert-info" role="alert">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>File Format:</strong> Only .rtf files are supported. If you have .docx or .pdf files, 
+                    please use "Save As → Rich Text Format (.rtf)" in your document editor first.
+                </div>
+
+                <form action="{{ url_for('upload_files') }}" method="post" enctype="multipart/form-data" id="uploadForm">
+                    <!-- Source File Upload -->
+                    <div class="mb-4">
+                        <label for="source_file" class="form-label required">
+                            <i class="fas fa-file-text me-2"></i>Source/Reference File (.rtf)
+                        </label>
+                        <div class="upload-zone" id="sourceUploadZone">
+                            <input type="file" class="form-control" id="source_file" name="source_file" 
+                                   accept=".rtf" required>
+                            <div class="upload-text">
+                                <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">Drag and drop your source RTF file here, or click to browse</p>
+                                <small class="text-muted">This file will be used as the baseline for comparison</small>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-muted">Selected file: <span id="sourceFileName">None</span></small>
+                        </div>
+                    </div>
+
+                    <!-- Comparison Files Upload -->
+                    <div class="mb-4">
+                        <label for="comparison_files" class="form-label required">
+                            <i class="fas fa-files me-2"></i>Comparison Files (.rtf)
+                        </label>
+                        <div class="upload-zone" id="comparisonUploadZone">
+                            <input type="file" class="form-control" id="comparison_files" name="comparison_files" 
+                                   accept=".rtf" multiple required>
+                            <div class="upload-text">
+                                <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">Drag and drop your comparison RTF files here, or click to browse</p>
+                                <small class="text-muted">Select one or more files to compare against the source (max 20 files, 15MB each)</small>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-muted">Selected files: <span id="comparisonFileNames">None</span></small>
+                        </div>
+                    </div>
+
+                    <!-- Options -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-cog me-2"></i>Comparison Options</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="ignore_case" name="ignore_case">
+                                        <label class="form-check-label" for="ignore_case">
+                                            Ignore case differences
+                                        </label>
+                                        <small class="form-text text-muted d-block">Treat "Hello" and "hello" as identical</small>
+                                    </div>
+                                    
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="ignore_punctuation" name="ignore_punctuation">
+                                        <label class="form-check-label" for="ignore_punctuation">
+                                            Ignore punctuation differences
+                                        </label>
+                                        <small class="form-text text-muted d-block">Ignore commas, periods, and other punctuation</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="ignore_boilerplate" name="ignore_boilerplate" checked>
+                                        <label class="form-check-label" for="ignore_boilerplate">
+                                            Ignore repeated headers/footers
+                                        </label>
+                                        <small class="form-text text-muted d-block">Remove SAS output headers, timestamps, and pagination</small>
+                                    </div>
+                                    
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="normalize_whitespace" name="normalize_whitespace" checked>
+                                        <label class="form-check-label" for="normalize_whitespace">
+                                            Normalize whitespace
+                                        </label>
+                                        <small class="form-text text-muted d-block">Trim extra spaces and normalize line endings</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="diff_granularity" class="form-label">Diff granularity</label>
+                                <select class="form-select" id="diff_granularity" name="diff_granularity">
+                                    <option value="word" selected>Word-level (recommended)</option>
+                                    <option value="line">Line-level</option>
+                                </select>
+                                <small class="form-text text-muted">Word-level shows more precise differences</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                            <i class="fas fa-play me-2"></i>Compare Files
+                        </button>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="progress mt-3" id="progressContainer" style="display: none;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 0%" id="progressBar">
+                            <span id="progressText">Processing...</span>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Help Section -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-question-circle me-2"></i>How It Works</h5>
+            </div>
+            <div class="card-body">
+                <ol>
+                    <li><strong>Upload your files:</strong> Select one source/reference RTF file and one or more comparison RTF files.</li>
+                    <li><strong>Configure options:</strong> Choose how you want the comparison to be performed (ignore case, punctuation, etc.).</li>
+                    <li><strong>Run comparison:</strong> Click "Compare Files" to process your files and generate diff reports.</li>
+                    <li><strong>Review results:</strong> View a summary table and detailed side-by-side comparisons for each file.</li>
+                    <li><strong>Download reports:</strong> Export consolidated HTML reports or CSV summaries for your records.</li>
+                </ol>
+                
+                <div class="alert alert-warning mt-3" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>File Limits:</strong> Maximum 20 files per upload, 15MB per file. Files are processed securely and deleted after your session.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // File upload handling
+    const sourceFile = document.getElementById('source_file');
+    const comparisonFiles = document.getElementById('comparison_files');
+    const sourceFileName = document.getElementById('sourceFileName');
+    const comparisonFileNames = document.getElementById('comparisonFileNames');
+    const uploadForm = document.getElementById('uploadForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+
+    // Update file name displays
+    sourceFile.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            sourceFileName.textContent = this.files[0].name;
+            validateFiles();
+        } else {
+            sourceFileName.textContent = 'None';
+        }
+    });
+
+    comparisonFiles.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            const names = Array.from(this.files).map(f => f.name).join(', ');
+            comparisonFileNames.textContent = names.length > 100 ? 
+                names.substring(0, 100) + '...' : names;
+            validateFiles();
+        } else {
+            comparisonFileNames.textContent = 'None';
+        }
+    });
+
+    // File validation
+    function validateFiles() {
+        const sourceValid = sourceFile.files.length > 0 && sourceFile.files[0].name.toLowerCase().endsWith('.rtf');
+        const comparisonValid = comparisonFiles.files.length > 0 && 
+            Array.from(comparisonFiles.files).every(f => f.name.toLowerCase().endsWith('.rtf'));
+        
+        if (!sourceValid || !comparisonValid) {
+            submitBtn.disabled = true;
+            if (sourceFile.files.length > 0 && !sourceValid) {
+                showError('Source file must be an RTF file');
+            }
+            if (comparisonFiles.files.length > 0 && !comparisonValid) {
+                showError('All comparison files must be RTF files');
+            }
+        } else {
+            submitBtn.disabled = false;
+            clearErrors();
+        }
+    }
+
+    // Form submission with progress
+    uploadForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+        progressContainer.style.display = 'block';
+        
+        // Simulate progress (since we can't track actual upload progress easily)
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+            progress += Math.random() * 15;
+            if (progress > 90) progress = 90;
+            progressBar.style.width = progress + '%';
+            progressText.textContent = `Processing... ${Math.round(progress)}%`;
+        }, 200);
+
+        // Submit the actual form
+        const formData = new FormData(this);
+        fetch(this.action, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            clearInterval(progressInterval);
+            progressBar.style.width = '100%';
+            progressText.textContent = 'Complete!';
+            
+            if (response.ok) {
+                window.location.href = response.url;
+            } else {
+                return response.text().then(text => {
+                    throw new Error('Upload failed');
+                });
+            }
+        })
+        .catch(error => {
+            clearInterval(progressInterval);
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-play me-2"></i>Compare Files';
+            progressContainer.style.display = 'none';
+            showError('Error processing files. Please try again.');
+        });
+    });
+
+    function showError(message) {
+        // Remove existing error alerts
+        clearErrors();
+        
+        const alert = document.createElement('div');
+        alert.className = 'alert alert-danger alert-dismissible fade show mt-3';
+        alert.innerHTML = `
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        uploadForm.appendChild(alert);
+    }
+
+    function clearErrors() {
+        const alerts = uploadForm.querySelectorAll('.alert-danger');
+        alerts.forEach(alert => alert.remove());
+    }
+});
+</script>
+{% endblock %}
